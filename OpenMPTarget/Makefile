@@ -63,6 +63,7 @@ CXXFLAGS += -Wno-openmp-target -Wall -Wno-unused-variable
 CXXFLAGS += $(DEFINE)
 CXXFLAGS += -std=c++11
 CXXFLAGS += -lm
+#CXXFLAGS += -v #verbose flag
 ifeq ($(OPENMP),y)
 	CXXFLAGS += -fopenmp
 endif

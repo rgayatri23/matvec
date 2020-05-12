@@ -5,36 +5,32 @@ const int repeat = 100;
 #define PRINT 1
 
 int
-dot(int i, int j, ARRAY3D& m, ARRAY2D& x)
+dot(int i, int j, DataType* m, DataType* x)
 {
   int result = 0;
-#if defined(_OPENMP)
-#if defined(OPENMP_TARGET)
-#pragma omp simd
-#endif
-#endif
+  //#if defined(OPENMP_TARGET)
+  //#pragma omp simd
+  //#endif
   for (int k = 0; k < N; ++k)
-    result += m(i, j, k) * x(i, k);
+    result += m[k] * x[k];
 
   return result;
 }
 
 void
-matvec(int i, ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
+matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
 {
-#if defined(_OPENMP)
 #if defined(OPENMP_TARGET)
-#pragma omp parallel for
+#pragma omp for
 #endif
-#endif
-  for (int j = 0; j < N; ++j)
-    y(i, j) += dot(i, j, m, x);
+  for (int j = 0; j < N; ++j) {
+    y[j] += dot(i, j, m.subArray(i, j), x.subArray(i));
+  }
 }
 
 void
 batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
 {
-#if defined(_OPENMP)
 #if defined(OPENMP_TARGET)
   // Map m,x,y onto the device
 #pragma omp target enter data map(to : m, x, y)
@@ -42,18 +38,22 @@ batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
   to                                                                           \
   : m.dptr [0:m.size], x.dptr [0:x.size], y.dptr [0:y.size])
 #pragma omp target teams distribute
-#else
+#elif defined(_OPENMP)
 #pragma omp parallel for default(none) shared(m, x, y, N)
 #endif
-#endif
-  for (int i = 0; i < N; ++i)
-    matvec(i, m, x, y);
-
-#if defined(_OPENMP)
+  for (int i = 0; i < N; ++i) {
+    // Launch parallel threads
 #if defined(OPENMP_TARGET)
-    // Write back results from device to y
-#pragma omp target exit data map(from : y.dptr [0:y.size])
+#pragma omp parallel
 #endif
+    {
+      matvec(i, m, x, y.subArray(i));
+    }
+  }
+
+#if defined(OPENMP_TARGET)
+  // Write back results from device to y
+#pragma omp target exit data map(from : y.dptr [0:y.size])
 #endif
 }
 
