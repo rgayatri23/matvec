@@ -2,7 +2,8 @@
 
 const int N = 1000;
 const int repeat = 100;
-#define PRINT 1
+#define PRINT 0
+
 int
 main(int argc, char** argv)
 {
@@ -112,12 +113,12 @@ batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
 #pragma omp parallel for default(none) shared(m, x, y, N)
 #endif
   for (int i = 0; i < N; ++i) {
-    // Launch parallel threads
+    // Launch parallel teams/threads.
 #if defined(OPENMP_TARGET)
 #pragma omp parallel
 #endif
     {
-      matvec(i, m, x, y.subArray(i));
+      team_matvec(i, m, x, y.subArray(i));
     }
   }
 
@@ -127,27 +128,28 @@ batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
 #endif
 }
 
+// A team of threads would execute the loop iterations inside matvec routine.
 void
-matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
+team_matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
 {
 #if defined(OPENMP_TARGET)
 #pragma omp for
 #endif
   for (int j = 0; j < N; ++j) {
-    y[j] += dot(i, j, m.subArray(i, j), x.subArray(i));
+    y[j] += vector_dot(i, j, m.subArray(i, j), x.subArray(i));
   }
 }
 
+// Vector lanes inside each team would perform a reduce operation.
 int
-dot(int i, int j, DataType* m, DataType* x)
+vector_dot(int i, int j, DataType* m, DataType* x)
 {
   int result = 0;
-  //#if defined(OPENMP_TARGET)
-  //#pragma omp simd
-  //#endif
+#if defined(OPENMP_TARGET)
+#pragma omp simd
+#endif
   for (int k = 0; k < N; ++k)
     result += m[k] * x[k];
 
   return result;
 }
-

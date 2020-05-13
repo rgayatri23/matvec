@@ -137,8 +137,8 @@ void
 batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y);
 void
 
-matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y);
+team_matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y);
 
 int
-dot(int i, int j, DataType* m, DataType* x);
+vector_dot(int i, int j, DataType* m, DataType* x);
 #pragma omp end declare target
