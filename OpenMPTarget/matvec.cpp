@@ -3,60 +3,6 @@
 const int N = 1000;
 const int repeat = 100;
 #define PRINT 1
-
-int
-dot(int i, int j, DataType* m, DataType* x)
-{
-  int result = 0;
-  //#if defined(OPENMP_TARGET)
-  //#pragma omp simd
-  //#endif
-  for (int k = 0; k < N; ++k)
-    result += m[k] * x[k];
-
-  return result;
-}
-
-void
-matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
-{
-#if defined(OPENMP_TARGET)
-#pragma omp for
-#endif
-  for (int j = 0; j < N; ++j) {
-    y[j] += dot(i, j, m.subArray(i, j), x.subArray(i));
-  }
-}
-
-void
-batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
-{
-#if defined(OPENMP_TARGET)
-  // Map m,x,y onto the device
-#pragma omp target enter data map(to : m, x, y)
-#pragma omp target enter data map(                                             \
-  to                                                                           \
-  : m.dptr [0:m.size], x.dptr [0:x.size], y.dptr [0:y.size])
-#pragma omp target teams distribute
-#elif defined(_OPENMP)
-#pragma omp parallel for default(none) shared(m, x, y, N)
-#endif
-  for (int i = 0; i < N; ++i) {
-    // Launch parallel threads
-#if defined(OPENMP_TARGET)
-#pragma omp parallel
-#endif
-    {
-      matvec(i, m, x, y.subArray(i));
-    }
-  }
-
-#if defined(OPENMP_TARGET)
-  // Write back results from device to y
-#pragma omp target exit data map(from : y.dptr [0:y.size])
-#endif
-}
-
 int
 main(int argc, char** argv)
 {
@@ -151,3 +97,57 @@ main(int argc, char** argv)
 
   return 0;
 }
+
+void
+batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
+{
+#if defined(OPENMP_TARGET)
+  // Map m,x,y onto the device
+#pragma omp target enter data map(to : m, x, y)
+#pragma omp target enter data map(                                             \
+  to                                                                           \
+  : m.dptr [0:m.size], x.dptr [0:x.size], y.dptr [0:y.size])
+#pragma omp target teams distribute
+#elif defined(_OPENMP)
+#pragma omp parallel for default(none) shared(m, x, y, N)
+#endif
+  for (int i = 0; i < N; ++i) {
+    // Launch parallel threads
+#if defined(OPENMP_TARGET)
+#pragma omp parallel
+#endif
+    {
+      matvec(i, m, x, y.subArray(i));
+    }
+  }
+
+#if defined(OPENMP_TARGET)
+  // Write back results from device to y
+#pragma omp target exit data map(from : y.dptr [0:y.size])
+#endif
+}
+
+void
+matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
+{
+#if defined(OPENMP_TARGET)
+#pragma omp for
+#endif
+  for (int j = 0; j < N; ++j) {
+    y[j] += dot(i, j, m.subArray(i, j), x.subArray(i));
+  }
+}
+
+int
+dot(int i, int j, DataType* m, DataType* x)
+{
+  int result = 0;
+  //#if defined(OPENMP_TARGET)
+  //#pragma omp simd
+  //#endif
+  for (int k = 0; k < N; ++k)
+    result += m[k] * x[k];
+
+  return result;
+}
+

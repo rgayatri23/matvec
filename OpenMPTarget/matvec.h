@@ -10,14 +10,8 @@
 
 using DataType = int;
 
-// Use RightLayout for GPUs and LeftLayout for CPUs in ArrayMD class
-#if defined(OPENMP_TARGET)
 #define ARRAY2D Array2D<DataType>
 #define ARRAY3D Array3D<DataType>
-#else
-#define ARRAY2D Array2D<DataType>
-#define ARRAY3D Array3D<DataType>
-#endif
 
 using namespace std::chrono;
 
@@ -142,7 +136,8 @@ public:
 void
 batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y);
 void
-matvec(int i, ARRAY2D& m, ARRAY2D& x, DataType* y);
+
+matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y);
 
 int
 dot(int i, int j, DataType* m, DataType* x);
