@@ -1,11 +1,19 @@
-#include "matvec.h"
+#include "arrayMD.h"
+#include <bits/stdc++.h>
+#include <chrono>
+#include <ctime>
+#include <iostream>
+#include <random>
 
-const int N = 1000;
-const int repeat = 100;
+using namespace std::chrono;
+using DataType = int;
+
+const int N = 10;
+const int repeat = 1;
 #define PRINT 1
 
 int
-dot(int i, int j, Array3D<DataType>& m, Array2D<DataType>& x)
+dot(int i, int j, ArrayMD<DataType, 3>& m, ArrayMD<DataType, 2>& x)
 {
   int result = 0;
   for (int k = 0; k < N; ++k)
@@ -15,16 +23,19 @@ dot(int i, int j, Array3D<DataType>& m, Array2D<DataType>& x)
 }
 
 void
-matvec(int i, Array3D<DataType>& m, Array2D<DataType>& x, Array2D<DataType>& y)
+matvec(int i,
+       ArrayMD<DataType, 3>& m,
+       ArrayMD<DataType, 2>& x,
+       ArrayMD<DataType, 2>& y)
 {
   for (int j = 0; j < N; ++j)
     y(i, j) += dot(i, j, m, x);
 }
 
 void
-batched_matrix_vector(Array3D<DataType>& m,
-                      Array2D<DataType>& x,
-                      Array2D<DataType>& y)
+batched_matrix_vector(ArrayMD<DataType, 3>& m,
+                      ArrayMD<DataType, 2>& x,
+                      ArrayMD<DataType, 2>& y)
 {
   for (int i = 0; i < N; ++i)
     matvec(i, m, x, y);
@@ -44,9 +55,9 @@ main(int argc, char** argv)
   // Initialize uniform_int_distribution class.
   std::uniform_int_distribution<DataType> distribution(0, N);
 
-  Array2D<DataType> y(N, N);
-  Array2D<DataType> x(N, N);
-  Array3D<DataType> m(N, N, N);
+  ArrayMD<DataType, 2> y(N, N);
+  ArrayMD<DataType, 2> x(N, N);
+  ArrayMD<DataType, 3> m(N, N, N);
 
   std::cout << "Memory foot-print = "
             << (y.size + x.size + m.size) * (sizeof(DataType)) /
