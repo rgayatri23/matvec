@@ -1,8 +1,77 @@
-#include "matvec.h"
+#include "arrayMD.h"
+#include <bits/stdc++.h>
+#include <chrono>
+#include <ctime>
+#include <iostream>
+#include <random>
+
+#if _OPENMP
+#include <omp.h>
+#endif
+
+using namespace std::chrono;
+using DataType = int;
+#define ARRAY2D ArrayMD<DataType, 2>
+#define ARRAY3D ArrayMD<DataType, 3>
 
 const int N = 1000;
 const int repeat = 100;
-#define PRINT 0
+#define PRINT 1
+
+// Vector lanes inside each team would perform a reduce operation.
+int
+vector_dot(int i, int j, DataType* m, DataType* x)
+{
+  int result = 0;
+#if defined(OPENMP_TARGET)
+#pragma omp simd
+#endif
+  for (int k = 0; k < N; ++k)
+    result += m[k] * x[k];
+
+  return result;
+}
+
+// A team of threads would execute the loop iterations inside matvec routine.
+void
+team_matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
+{
+#if defined(OPENMP_TARGET)
+#pragma omp for
+#endif
+  for (int j = 0; j < N; ++j) {
+    y[j] += vector_dot(i, j, m.subArray(i, j), x.subArray(i));
+  }
+}
+
+void
+batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
+{
+#if defined(OPENMP_TARGET)
+  // Map m,x,y onto the device
+#pragma omp target enter data map(to : m, x, y)
+#pragma omp target enter data map(                                             \
+  to                                                                           \
+  : m.dptr [0:m.size], x.dptr [0:x.size], y.dptr [0:y.size])
+#pragma omp target teams distribute
+#elif defined(_OPENMP)
+#pragma omp parallel for default(none) shared(m, x, y, N)
+#endif
+  for (int i = 0; i < N; ++i) {
+    // Launch parallel teams/threads.
+#if defined(OPENMP_TARGET)
+#pragma omp parallel
+#endif
+    {
+      team_matvec(i, m, x, y.subArray(i));
+    }
+  }
+
+#if defined(OPENMP_TARGET)
+  // Write back results from device to y
+#pragma omp target exit data map(from : y.dptr [0:y.size])
+#endif
+}
 
 int
 main(int argc, char** argv)
@@ -52,9 +121,9 @@ main(int argc, char** argv)
   // Initialize uniform_int_distribution class.
   std::uniform_int_distribution<DataType> distribution(0, N);
 
-  ARRAY2D y(N, N);
-  ARRAY2D x(N, N);
-  ARRAY3D m(N, N, N);
+  ArrayMD<DataType, 2> y(N, N);
+  ArrayMD<DataType, 2> x(N, N);
+  ArrayMD<DataType, 3> m(N, N, N);
 
   std::cout << "Memory foot-print = "
             << (y.size + x.size + m.size) * (sizeof(DataType)) /
@@ -97,59 +166,4 @@ main(int argc, char** argv)
 #endif
 
   return 0;
-}
-
-void
-batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
-{
-#if defined(OPENMP_TARGET)
-  // Map m,x,y onto the device
-#pragma omp target enter data map(to : m, x, y)
-#pragma omp target enter data map(                                             \
-  to                                                                           \
-  : m.dptr [0:m.size], x.dptr [0:x.size], y.dptr [0:y.size])
-#pragma omp target teams distribute
-#elif defined(_OPENMP)
-#pragma omp parallel for default(none) shared(m, x, y, N)
-#endif
-  for (int i = 0; i < N; ++i) {
-    // Launch parallel teams/threads.
-#if defined(OPENMP_TARGET)
-#pragma omp parallel
-#endif
-    {
-      team_matvec(i, m, x, y.subArray(i));
-    }
-  }
-
-#if defined(OPENMP_TARGET)
-  // Write back results from device to y
-#pragma omp target exit data map(from : y.dptr [0:y.size])
-#endif
-}
-
-// A team of threads would execute the loop iterations inside matvec routine.
-void
-team_matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
-{
-#if defined(OPENMP_TARGET)
-#pragma omp for
-#endif
-  for (int j = 0; j < N; ++j) {
-    y[j] += vector_dot(i, j, m.subArray(i, j), x.subArray(i));
-  }
-}
-
-// Vector lanes inside each team would perform a reduce operation.
-int
-vector_dot(int i, int j, DataType* m, DataType* x)
-{
-  int result = 0;
-#if defined(OPENMP_TARGET)
-#pragma omp simd
-#endif
-  for (int k = 0; k < N; ++k)
-    result += m[k] * x[k];
-
-  return result;
 }
