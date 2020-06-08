@@ -7,8 +7,8 @@
 
 using namespace std::chrono;
 using DataType = int;
-#define ARRAY2D ArrayMD<DataType,2>
-#define ARRAY3D ArrayMD<DataType,3>
+#define ARRAY2D ArrayMD<DataType, 2>
+#define ARRAY3D ArrayMD<DataType, 3>
 
 const int N = 1000;
 const int repeat = 100;
@@ -25,19 +25,14 @@ dot(DataType* m, DataType* x)
 }
 
 void
-matvec(int i,
-       ARRAY3D& m,
-       ARRAY2D& x,
-       DataType* y)
+matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
 {
   for (int j = 0; j < N; ++j)
-    y[j] += dot(m.subArray(i,j), x.subArray(i));
+    y[j] += dot(m.subArray(i, j), x.subArray(i));
 }
 
 void
-batched_matrix_vector(ARRAY3D& m,
-                      ARRAY2D& x,
-                      ARRAY2D& y)
+batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
 {
   for (int i = 0; i < N; ++i)
     matvec(i, m, x, y.subArray(i));

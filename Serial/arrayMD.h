@@ -32,7 +32,9 @@ compute_offsets(std::array<size_t, dim>& offsets,
 
 template<size_t dim, typename T>
 void
-compute_subarray_offset(std::array<size_t, dim>& offsets, size_t& subarray_offset, T arg)
+compute_subarray_offset(std::array<size_t, dim>& offsets,
+                        size_t& subarray_offset,
+                        T arg)
 {
   subarray_offset += arg * offsets[dim - 1];
 }
@@ -40,18 +42,17 @@ compute_subarray_offset(std::array<size_t, dim>& offsets, size_t& subarray_offse
 template<size_t dim, typename T, typename... Idx>
 void
 compute_subarray_offset(std::array<size_t, dim>& offsets,
-                size_t& subarray_offset,
-                T arg,
-                Idx... args)
+                        size_t& subarray_offset,
+                        T arg,
+                        Idx... args)
 {
   size_t tmp = 1;
-  for(int i = 0; i < dim-1; ++i)
+  for (int i = 0; i < dim - 1; ++i)
     tmp *= offsets[dim - (sizeof...(args)) - i];
-  subarray_offset += arg*tmp;
+  subarray_offset += arg * tmp;
 
   compute_subarray_offset(offsets, subarray_offset, args...);
 }
-
 
 template<size_t dim, typename T>
 void
@@ -118,23 +119,18 @@ struct ArrayMD
   inline T& operator()(Idx... args)
   {
     const auto N = sizeof...(args);
-    static_assert(N <= dim,
-                  "parameters passed exceed the dimensionality");
+    static_assert(N <= dim, "parameters passed exceed the dimensionality");
     size_t index = 0;
-    if(N == dim)
-    {
+    if (N == dim) {
       compute_args(m_offsets, index, args...);
       return dptr[index];
-    }
-    else if(N < dim && N > 0)
-    {
+    } else if (N < dim && N > 0) {
       compute_args(m_subarray_offsets, subarray_index, args...);
       std::cout << "subarray_index = " << subarray_index << "\n";
       return dptr[subarray_index];
-    }
-    else
-    {
-      std::cout << "somthing went wrong" "\n";
+    } else {
+      std::cout << "somthing went wrong"
+                   "\n";
     }
   }
 
@@ -157,8 +153,9 @@ struct ArrayMD
   {
     size_t subarray_offset = 0;
     const auto N = sizeof...(args);
-    static_assert(N == dim-1,
-                  "parameters passed to subArray should be 1 less than actual dimension of the arrayMD");
+    static_assert(N == dim - 1,
+                  "parameters passed to subArray should be 1 less than actual "
+                  "dimension of the arrayMD");
 
     compute_subarray_offset(m_offsets, subarray_offset, args...);
 
