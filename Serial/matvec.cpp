@@ -7,38 +7,40 @@
 
 using namespace std::chrono;
 using DataType = int;
+#define ARRAY2D ArrayMD<DataType,2>
+#define ARRAY3D ArrayMD<DataType,3>
 
-const int N = 10;
-const int repeat = 1;
+const int N = 1000;
+const int repeat = 100;
 #define PRINT 1
 
 int
-dot(int i, int j, ArrayMD<DataType, 3>& m, ArrayMD<DataType, 2>& x)
+dot(DataType* m, DataType* x)
 {
   int result = 0;
   for (int k = 0; k < N; ++k)
-    result += m(i, j, k) * x(i, k);
+    result += m[k] * x[k];
 
   return result;
 }
 
 void
 matvec(int i,
-       ArrayMD<DataType, 3>& m,
-       ArrayMD<DataType, 2>& x,
-       ArrayMD<DataType, 2>& y)
+       ARRAY3D& m,
+       ARRAY2D& x,
+       DataType* y)
 {
   for (int j = 0; j < N; ++j)
-    y(i, j) += dot(i, j, m, x);
+    y[j] += dot(m.subArray(i,j), x.subArray(i));
 }
 
 void
-batched_matrix_vector(ArrayMD<DataType, 3>& m,
-                      ArrayMD<DataType, 2>& x,
-                      ArrayMD<DataType, 2>& y)
+batched_matrix_vector(ARRAY3D& m,
+                      ARRAY2D& x,
+                      ARRAY2D& y)
 {
   for (int i = 0; i < N; ++i)
-    matvec(i, m, x, y);
+    matvec(i, m, x, y.subArray(i));
 }
 
 int

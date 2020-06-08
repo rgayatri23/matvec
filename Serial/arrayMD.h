@@ -3,6 +3,9 @@
  *
  * Rahulkumar Gayatri
  * */
+#ifndef _ARRAYMD_H
+#define _ARRAYMD_H
+
 #include <array>
 #include <cassert>
 #include <iostream>
@@ -26,6 +29,29 @@ compute_offsets(std::array<size_t, dim>& offsets,
   size *= arg;
   compute_offsets(offsets, size, args...);
 }
+
+template<size_t dim, typename T>
+void
+compute_subarray_offset(std::array<size_t, dim>& offsets, size_t& subarray_offset, T arg)
+{
+  subarray_offset += arg * offsets[dim - 1];
+}
+
+template<size_t dim, typename T, typename... Idx>
+void
+compute_subarray_offset(std::array<size_t, dim>& offsets,
+                size_t& subarray_offset,
+                T arg,
+                Idx... args)
+{
+  size_t tmp = 1;
+  for(int i = 0; i < dim-1; ++i)
+    tmp *= offsets[dim - (sizeof...(args)) - i];
+  subarray_offset += arg*tmp;
+
+  compute_subarray_offset(offsets, subarray_offset, args...);
+}
+
 
 template<size_t dim, typename T>
 void
@@ -64,7 +90,9 @@ template<typename T, size_t dim>
 struct ArrayMD
 {
   std::array<size_t, dim> m_offsets;
+  std::array<size_t, dim> m_subarray_offsets;
   size_t size;
+  size_t subarray_index;
   T* dptr;
 
   ArrayMD() = default;
@@ -73,9 +101,12 @@ struct ArrayMD
   ArrayMD(Idx... args)
   {
     const auto N = sizeof...(args);
-    size = 1;
     static_assert(N == dim,
                   "Dimensionality passed does not match the argument list");
+    size = 1;
+    subarray_index = 0;
+    m_offsets.fill(0);
+    m_subarray_offsets.fill(0);
 
     compute_offsets(m_offsets, size, args...);
 
@@ -86,9 +117,25 @@ struct ArrayMD
   template<typename... Idx>
   inline T& operator()(Idx... args)
   {
+    const auto N = sizeof...(args);
+    static_assert(N <= dim,
+                  "parameters passed exceed the dimensionality");
     size_t index = 0;
-    compute_args(m_offsets, index, args...);
-    return dptr[index];
+    if(N == dim)
+    {
+      compute_args(m_offsets, index, args...);
+      return dptr[index];
+    }
+    else if(N < dim && N > 0)
+    {
+      compute_args(m_subarray_offsets, subarray_index, args...);
+      std::cout << "subarray_index = " << subarray_index << "\n";
+      return dptr[subarray_index];
+    }
+    else
+    {
+      std::cout << "somthing went wrong" "\n";
+    }
   }
 
   ArrayMD(const ArrayMD& p)
@@ -105,6 +152,19 @@ struct ArrayMD
     dptr = p.dptr;
   }
 
+  template<typename... Idx>
+  T* subArray(Idx... args)
+  {
+    size_t subarray_offset = 0;
+    const auto N = sizeof...(args);
+    static_assert(N == dim-1,
+                  "parameters passed to subArray should be 1 less than actual dimension of the arrayMD");
+
+    compute_subarray_offset(m_offsets, subarray_offset, args...);
+
+    return (dptr + subarray_offset);
+  }
+
   // Destructor
   ~ArrayMD()
   {
@@ -112,3 +172,5 @@ struct ArrayMD
       delete[] dptr;
   }
 };
+
+#endif
