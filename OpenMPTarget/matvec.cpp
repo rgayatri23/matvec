@@ -16,7 +16,7 @@ using DataType = int;
 
 const int N = 1000;
 const int repeat = 100;
-#define PRINT 1
+#define PRINT 0
 
 // Vector lanes inside each team would perform a reduce operation.
 int
