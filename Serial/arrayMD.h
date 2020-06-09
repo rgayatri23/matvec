@@ -119,19 +119,10 @@ struct ArrayMD
   inline T& operator()(Idx... args)
   {
     const auto N = sizeof...(args);
-    static_assert(N <= dim, "parameters passed exceed the dimensionality");
+    static_assert(N == dim, "parameters passed exceed the dimensionality");
     size_t index = 0;
-    if (N == dim) {
-      compute_args(m_offsets, index, args...);
-      return dptr[index];
-    } else if (N < dim && N > 0) {
-      compute_args(m_subarray_offsets, subarray_index, args...);
-      std::cout << "subarray_index = " << subarray_index << "\n";
-      return dptr[subarray_index];
-    } else {
-      std::cout << "somthing went wrong"
-                   "\n";
-    }
+    compute_args(m_offsets, index, args...);
+    return dptr[index];
   }
 
   ArrayMD(const ArrayMD& p)

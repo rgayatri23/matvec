@@ -12,7 +12,7 @@ using DataType = int;
 
 const int N = 1000;
 const int repeat = 100;
-#define PRINT 1
+#define PRINT 0
 
 int
 dot(DataType* m, DataType* x)
