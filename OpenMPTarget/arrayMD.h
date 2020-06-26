@@ -10,8 +10,11 @@
 #include <cassert>
 #include <iostream>
 
+template<bool B, typename T>
+using enable_if_t = typename std::enable_if<B, T>::type;
+
 template<size_t dim, typename T>
-void
+inline void
 compute_offsets(std::array<size_t, dim>& offsets, size_t& size, T arg)
 {
   offsets[dim - 1] = arg;
@@ -19,7 +22,7 @@ compute_offsets(std::array<size_t, dim>& offsets, size_t& size, T arg)
 }
 
 template<size_t dim, typename T, typename... Idx>
-void
+inline void
 compute_offsets(std::array<size_t, dim>& offsets,
                 size_t& size,
                 T arg,
@@ -28,6 +31,31 @@ compute_offsets(std::array<size_t, dim>& offsets,
   offsets[dim - (sizeof...(args)) - 1] = arg;
   size *= arg;
   compute_offsets(offsets, size, args...);
+}
+
+template<size_t dim, typename T>
+inline void
+compute_args(std::array<size_t, dim>& offsets, size_t& index, T arg)
+{
+  index += arg;
+}
+
+template<size_t dim, typename T, typename... Idx>
+inline void
+compute_args(std::array<size_t, dim>& offsets,
+             size_t& index,
+             T arg,
+             Idx... args)
+{
+
+  auto index_eval = arg;
+  for (int i = dim - sizeof...(args); i < dim; ++i)
+    index_eval *= offsets[i];
+  index += index_eval;
+
+  compute_args(offsets, index, args...);
+
+  return;
 }
 
 template<size_t dim, typename T>
@@ -54,46 +82,12 @@ compute_subarray_offset(std::array<size_t, dim>& offsets,
   compute_subarray_offset(offsets, subarray_offset, args...);
 }
 
-template<size_t dim, typename T>
-void
-compute_args(std::array<size_t, dim>& offsets, size_t& index, T arg)
-{
-  index += arg;
-}
-
-template<size_t dim, typename T, typename... Idx>
-void
-compute_args(std::array<size_t, dim>& offsets,
-             size_t& index,
-             T arg,
-             Idx... args)
-{
-  //  TODO - The assert in this case would not work if the build type is set to
-  //  "Release" instead of "Debug" Need to make our own version of always_assert
-  //  that stays on always on. assert(arg > offsets[dim-sizeof...(args)-1] &&
-  //  "Whoops the index is higher than the dimension ");
-  if (arg > offsets[dim - sizeof...(args) - 1]) {
-    printf("Whoops the index is higher than the dimension \n");
-    abort();
-  }
-
-  auto index_eval = arg;
-  for (int i = dim - sizeof...(args); i < dim; ++i)
-    index_eval *= offsets[i];
-  index += index_eval;
-
-  compute_args(offsets, index, args...);
-
-  return;
-}
-
 template<typename T, size_t dim>
 struct ArrayMD
 {
   std::array<size_t, dim> m_offsets;
-  std::array<size_t, dim> m_subarray_offsets;
   size_t size;
-  size_t subarray_index;
+  size_t subarray_offset;
   T* dptr;
 
   ArrayMD() = default;
@@ -105,9 +99,7 @@ struct ArrayMD
     static_assert(N == dim,
                   "Dimensionality passed does not match the argument list");
     size = 1;
-    subarray_index = 0;
     m_offsets.fill(0);
-    m_subarray_offsets.fill(0);
 
     compute_offsets(m_offsets, size, args...);
 
@@ -132,11 +124,15 @@ struct ArrayMD
     dptr = p.dptr;
   }
 
-  void operator=(const ArrayMD& p)
+  ArrayMD& operator=(ArrayMD&&) = default;
+
+  ArrayMD& operator=(const ArrayMD& p)
   {
     m_offsets = p.m_offsets;
     size = 0;
     dptr = p.dptr;
+
+    return *this;
   }
 
   template<typename... Idx>
@@ -153,6 +149,23 @@ struct ArrayMD
     return (dptr + subarray_offset);
   }
 
+  template<typename... Idx>
+  void resize(Idx... args)
+  {
+    const auto N = sizeof...(args);
+    static_assert(N == dim,
+                  "Dimensionality passed does not match the argument list");
+    size = 1;
+    m_offsets.fill(0);
+
+    compute_offsets(m_offsets, size, args...);
+
+    // Allocate memory for size number of T-elements
+    dptr = new T[size];
+  }
+
+  T* data() { return dptr; }
+
   // Destructor
   ~ArrayMD()
   {
@@ -160,5 +173,4 @@ struct ArrayMD
       delete[] dptr;
   }
 };
-
 #endif

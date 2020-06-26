@@ -16,11 +16,11 @@ using DataType = int;
 
 const int N = 1000;
 const int repeat = 100;
-#define PRINT 0
+#define PRINT 1
 
 // Vector lanes inside each team would perform a reduce operation.
 int
-vector_dot(int i, int j, DataType* m, DataType* x)
+vector_dot(DataType* m, DataType* x)
 {
   int result = 0;
 #if defined(OPENMP_TARGET)
@@ -40,7 +40,7 @@ team_matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
 #pragma omp for
 #endif
   for (int j = 0; j < N; ++j) {
-    y[j] += vector_dot(i, j, m.subArray(i, j), x.subArray(i));
+    y[j] += vector_dot(m.subArray(i, j), x.subArray(i));
   }
 }
 
@@ -121,9 +121,9 @@ main(int argc, char** argv)
   // Initialize uniform_int_distribution class.
   std::uniform_int_distribution<DataType> distribution(0, N);
 
-  ArrayMD<DataType, 2> y(N, N);
-  ArrayMD<DataType, 2> x(N, N);
-  ArrayMD<DataType, 3> m(N, N, N);
+  ARRAY2D y(N, N);
+  ARRAY2D x(N, N);
+  ARRAY3D m(N, N, N);
 
   std::cout << "Memory foot-print = "
             << (y.size + x.size + m.size) * (sizeof(DataType)) /
