@@ -1,33 +1,48 @@
 #include "matvec.h"
 
-int
-dot(DataType* m, DataType* x)
+__device__ void
+dot(int i, int j, DataType result[], ARRAY3DGPU& m, ARRAY2DGPU& x)
 {
-  int result = 0;
-  for (int k = 0; k < N; ++k)
-    result += m[k] * x[k];
+  int yId = threadIdx.y * blockDim.x;
+  for (int k = threadIdx.x; k < blockDim.x; k += blockDim.x)
+    result[yId + k] = 0;
 
-  return result;
+  for (int k = threadIdx.x; k < N; k += blockDim.x)
+    result[yId + (k % blockDim.x)] += m(i, j, k) * x(i, k);
+
+  for (int k = threadIdx.x + 1; k < blockDim.x; k += blockDim.x)
+    atomicAdd(&(result[yId]), result[yId + k]);
+}
+
+__global__ void
+matvec(ARRAY3DGPU m, ARRAY2DGPU x, ARRAY2DGPU y)
+{
+  for (int i = blockIdx.x; i < N; i += gridDim.x) {
+    extern __shared__ DataType result[];
+    int yId = threadIdx.y * blockDim.x;
+
+    for (int j = threadIdx.y; j < N; j += blockDim.y) {
+      dot(i, j, result, m, x);
+
+      y(i, j) += result[yId];
+    }
+  }
 }
 
 void
-matvec(int i, ARRAY3D& m, ARRAY2D& x, DataType* y)
+batched_matrix_vector(ARRAY3DGPU m, ARRAY2DGPU x, ARRAY2DGPU y)
 {
-  for (int j = 0; j < N; ++j)
-    y[j] += dot(m.subArray(i, j), x.subArray(i));
-}
-
-void
-batched_matrix_vector(ARRAY3D& m, ARRAY2D& x, ARRAY2D& y)
-{
-  for (int i = 0; i < N; ++i)
-    matvec(i, m, x, y.subArray(i));
+  const int Nx = 32, Ny = 32;
+  size_t Ns = Nx * Ny * sizeof(DataType);
+  dim3 numThreads(Nx, Ny, 1);
+  matvec<<<N, numThreads, Ns>>>(m, x, y);
+  cudaDeviceSynchronize();
 }
 
 int
 main(int argc, char** argv)
 {
-  std::cout << "Running the basic sequential version." << std::endl;
+  std::cout << "Running the CUDA version." << std::endl;
 
   // Using time point and system_clock
   time_point<system_clock> start, end, k_start, k_end;
@@ -75,7 +90,7 @@ main(int argc, char** argv)
 
   // Start GPU wrok from here....
   for (int i = 0; i < repeat; ++i)
-    d_batched_matrix_vector(d_m, d_x, d_y);
+    batched_matrix_vector(d_m, d_x, d_y);
 
   checkCudaErrors(cudaMemcpy(
     y.dptr, d_y.dptr, y.size * sizeof(DataType), cudaMemcpyDeviceToHost));

@@ -29,8 +29,8 @@ d_matvec(ARRAY3DGPU m, ARRAY2DGPU x, ARRAY2DGPU y);
 void
 d_batched_matrix_vector(ARRAY3DGPU m, ARRAY2DGPU x, ARRAY2DGPU y);
 
-const int N = 10;
-const int repeat = 1;
+const int N = 1000;
+const int repeat = 100;
 #define PRINT 1
 
 #endif
