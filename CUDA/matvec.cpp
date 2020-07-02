@@ -1,14 +1,35 @@
-#include "matvec.h"
+#include "../arrayMD/arrayMD.h"
+#include <bits/stdc++.h>
+#include <chrono>
+#include <ctime>
+#include <iostream>
+#include <random>
+#include <random>
+#include <cuda.h>
+#include <cuda_runtime_api.h>
+#include <vector_types.h>
+
+using namespace std::chrono;
+using DataType = int;
+#define ARRAY2D ArrayMD<DataType, 2, Device::cpu>
+#define ARRAY3D ArrayMD<DataType, 3, Device::cpu>
+
+#define ARRAY2DGPU ArrayMD<DataType,2, Device::gpu>
+#define ARRAY3DGPU ArrayMD<DataType,3, Device::gpu>
+
+const int N = 1000;
+const int repeat = 100;
+#define PRINT 1
 
 __device__ void
-dot(int i, int j, DataType result[], ARRAY3DGPU& m, ARRAY2DGPU& x)
+dot(DataType result[], DataType* m, DataType* x)
 {
   int yId = threadIdx.y * blockDim.x;
   for (int k = threadIdx.x; k < blockDim.x; k += blockDim.x)
     result[yId + k] = 0;
 
   for (int k = threadIdx.x; k < N; k += blockDim.x)
-    result[yId + (k % blockDim.x)] += m(i, j, k) * x(i, k);
+    result[yId + (k % blockDim.x)] += m[k] * x[k];
 
   for (int k = threadIdx.x + 1; k < blockDim.x; k += blockDim.x)
     atomicAdd(&(result[yId]), result[yId + k]);
@@ -18,13 +39,14 @@ __global__ void
 matvec(ARRAY3DGPU m, ARRAY2DGPU x, ARRAY2DGPU y)
 {
   for (int i = blockIdx.x; i < N; i += gridDim.x) {
+    DataType* y_sub = y.subArray(i);
     extern __shared__ DataType result[];
     int yId = threadIdx.y * blockDim.x;
 
     for (int j = threadIdx.y; j < N; j += blockDim.y) {
-      dot(i, j, result, m, x);
+      dot(result, m.subArray(i, j), x.subArray(i));
 
-      y(i, j) += result[yId];
+      y_sub[j] += result[yId];
     }
   }
 }
@@ -45,7 +67,7 @@ main(int argc, char** argv)
   std::cout << "Running the CUDA version." << std::endl;
 
   // Using time point and system_clock
-  time_point<system_clock> start, end, k_start, k_end;
+  time_point<system_clock> start, end, k_start;
   start = system_clock::now();
 
   // Use default_random_engine object to introduce randomness.
