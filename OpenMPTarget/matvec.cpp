@@ -1,4 +1,4 @@
-#include "arrayMD.h"
+#include "../arrayMD/arrayMD.h"
 #include <bits/stdc++.h>
 #include <chrono>
 #include <ctime>
@@ -11,8 +11,8 @@
 
 using namespace std::chrono;
 using DataType = int;
-#define ARRAY2D ArrayMD<DataType, 2>
-#define ARRAY3D ArrayMD<DataType, 3>
+#define ARRAY2D ArrayMD<DataType, 2, Device::cpu>
+#define ARRAY3D ArrayMD<DataType, 3, Device::cpu>
 
 const int N = 1000;
 const int repeat = 100;
