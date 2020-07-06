@@ -322,15 +322,25 @@ struct ArrayMD
     dptr = new T[size];
   }
 
-  ~ArrayMD()
+  template<size_t D = device, enable_if_t<(D == Device::cpu), int> = 0>
+  void destroy_data()
   {
-    if (size && dptr && device == Device::cpu) {
+    if (size && dptr && device == Device::cpu)
       delete[] dptr;
-    }
+  }
+
+  template<size_t D = device, enable_if_t<(D == Device::gpu), int> = 0>
+  void destroy_data()
+  {
 #if __NVCC__
-    else if (size && dptr && device == Device::gpu)
+    if (size && dptr && device == Device::gpu)
       checkCudaErrors(cudaFree(dptr));
 #endif
+  }
+
+  ~ArrayMD()
+  {
+    destroy_data();
   }
 };
 

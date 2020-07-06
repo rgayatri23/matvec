@@ -14,8 +14,8 @@ using DataType = int;
 #define ARRAY2D ArrayMD<DataType, 2, Device::cpu>
 #define ARRAY3D ArrayMD<DataType, 3, Device::cpu>
 
-#define ARRAY2DGPU ArrayMD<DataType,2, Device::gpu>
-#define ARRAY3DGPU ArrayMD<DataType,3, Device::gpu>
+#define ARRAY2DGPU ArrayMD<DataType, 2, Device::gpu>
+#define ARRAY3DGPU ArrayMD<DataType, 3, Device::gpu>
 
 const int N = 1000;
 const int repeat = 100;

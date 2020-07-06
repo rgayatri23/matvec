@@ -18,7 +18,7 @@ SET(MyTarget matvec)
 ADD_EXECUTABLE(
   ${MyTarget}
   ${CMAKE_SOURCE_DIR}/matvec.cpp
-  ${CMAKE_SOURCE_DIR}/arrayMD.h
+  ${CMAKE_SOURCE_DIR}/../arrayMD/arrayMD.h
   )
 
 if(${OPENMP})
